@@ -1,0 +1,104 @@
+---
+title: "Practical Machine Learning Course Project"
+output: html_document
+---
+
+## Background
+This report serves to highlight the use of machine learning techniques for predictive analytics. The project description is as follows:
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement – a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. More information is available from the website here: http://groupware.les.inf.puc-rio.br/har (see the section on the Weight Lifting Exercise Dataset).
+
+## Outcomes
+The goal of the project is to predict the manner in which they did the exercise. This is the given by the `classe` variable in the training set. This report will showcase the choice of variables, how the model was built, how cross validation was used, what the expected out of sample error is, and the reasons behind the choices made. The model will then be used to predict 20 test cases for submission.
+
+## Required Libraries
+```{r, message=FALSE}
+library(caret)
+```
+
+## Data Ingestion
+The data is first loaded into memory. `pml-training.csv` contains all the training data and `pml-testing.csv` contains the 20 test cases for submission. 
+We denote missing values, NA values and mathematically incorrect values to be the NA values in our dataframe.
+```{r}
+training = read.csv("pml-training.csv", na.strings = c("NA","#DIV/0!",""))
+testing = read.csv("pml-testing.csv", na.strings = c("NA","#DIV/0!",""))
+```
+
+## Data Processing
+Before proceeding any further, let's establish a hold-out test set to serve as an unbiased set of data to evaluate the model.
+```{r}
+trainIndex = createDataPartition(training$classe, times = 1, list = FALSE, p = 0.7)
+train = training[trainIndex,]
+test = training[-trainIndex,]
+dim(train); dim(test);
+```
+A quick summary of the data shows that there are many variables with missing values or low variance.
+```{r}
+summary(train)
+```
+Let's have a look a the variables with near zero variance.
+```{r}
+nzvVar = nearZeroVar(train,saveMetrics = TRUE)
+nzvVar
+```
+Variables with near zero variance will have little impact on our modeling. Thus, we will drop them.
+```{r}
+dropVar = nearZeroVar(train)
+train = train[,-dropVar]
+```
+Once that is done, let's drop variables with more than 50% missing values.
+```{r}
+missing = apply(X = train, MARGIN = 2, FUN = function(x){sum(is.na(x))})
+train = train[,-which(missing > nrow(train)/2,arr.ind = TRUE)]
+summary(train)
+```
+The first 6 columns contains variables such as row index, time, username etc that we don't need.
+```{r}
+train = train[,-c(1:6)]
+```
+The data for training is now ready. Let's do the same for the test set. We find the column names that are preserved in the training set and do the same for the test set as well.
+```{r}
+vars = colnames(train)
+test = test[,colnames(test) %in% vars]
+```
+
+## Model Building
+Let's try a simple k-nearest neighbors model. We will use 10-fold cross validation and the optimal number of k will be automatically picked. Since KNN is a distance based modelling, the parameters need to be centered and scaled first.
+```{r, cache=TRUE}
+set.seed(111)
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10)
+knnmodel = train(classe~., data = train, method = "knn", trControl = fitControl, preProcess = c("center", "scale"))
+```
+The final value of k is chosen to be 5 and has an accuracy of 0.9598. Let's test this model on our hold-out set.
+```{r}
+knntestPred = predict(knnmodel, test)
+confusionMatrix(knntestPred,test$classe)
+```
+Seems like the KNN model is pretty good on it's own on the hold-out set with an accuracy of 0.9638.
+
+Now, we will try an ensemble model known as a random forest. In order to prevent overfitting, we will utilize 10-fold cross validation. Essentially, this creates multiple models over 10 different folds on our data so that we are able to get an estimate of the error. This gives a better idea if our model is overfitting or not.
+```{r}
+set.seed(111)
+fitControl <- trainControl(## 10-fold CV
+  method = "cv",
+  number = 10)
+model = train(classe~., data = train,method = "rf",trControl = fitControl)
+```
+Likewise, let's test out this model on the hold-out set.
+```{r}
+testPred = predict(model,test)
+confusionMatrix(testPred,test$classe)
+```
+Here we see that the random forest model performs slightly better in terms of accuracy. However, the largest trade-off between the knn and the random forest is that the random forest model takes a much longer time to train (approximately 30mins). Practically speaking, the knn model would be a preferred model as it's fast to train and has relatively high accuracy.
+
+## Predicting Test Cases
+Finally, let's try predicting the overall result in the given test cases. Since we would like high accuracy, we will use the random forest model to predict the results.
+```{r, cache=TRUE}
+testing = testing[,colnames(testing) %in% vars]
+finalpred = predict(model,testing)
+finalpred = as.data.frame(finalpred)
+id = seq(from = 1, to = 20, by = 1)
+finalpred = cbind(id,finalpred)
+finalpred
+```
