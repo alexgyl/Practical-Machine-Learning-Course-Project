@@ -78,7 +78,7 @@ confusionMatrix(knntestPred,test$classe)
 Seems like the KNN model is pretty good on it's own on the hold-out set with an accuracy of 0.9638.
 
 Now, we will try an ensemble model known as a random forest. In order to prevent overfitting, we will utilize 10-fold cross validation. Essentially, this creates multiple models over 10 different folds on our data so that we are able to get an estimate of the error. This gives a better idea if our model is overfitting or not.
-```{r}
+```{r, cache=TRUE}
 set.seed(111)
 fitControl <- trainControl(## 10-fold CV
   method = "cv",
@@ -90,7 +90,9 @@ Likewise, let's test out this model on the hold-out set.
 testPred = predict(model,test)
 confusionMatrix(testPred,test$classe)
 ```
-Here we see that the random forest model performs slightly better in terms of accuracy. However, the largest trade-off between the knn and the random forest is that the random forest model takes a much longer time to train (approximately 30mins). Practically speaking, the knn model would be a preferred model as it's fast to train and has relatively high accuracy.
+Here we see that the random forest model performs slightly better in terms of accuracy. However, the largest trade-off between the knn and the random forest is that the random forest model takes a much longer time to train (approximately 30mins). 
+
+The final out-of-sample error we get is given by 1-0.9638 = 0.0362 or 3.62% for the k-nearest neighbors model and 1-0.9942 = 0.0058 = 0.58% for the random forest model. Practically speaking, the knn model would be a preferred model as it's fast to train and has relatively high accuracy.
 
 ## Predicting Test Cases
 Finally, let's try predicting the overall result in the given test cases. Since we would like high accuracy, we will use the random forest model to predict the results.

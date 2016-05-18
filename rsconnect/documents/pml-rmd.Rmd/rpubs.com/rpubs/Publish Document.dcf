@@ -1,0 +1,7 @@
+name: Publish Document
+account: rpubs
+server: rpubs.com
+appId: https://api.rpubs.com/api/v1/document/181320/c2d56422c57d4a0088a412244216cd77
+bundleId: https://api.rpubs.com/api/v1/document/181320/c2d56422c57d4a0088a412244216cd77
+url: http://rpubs.com/Legoh/181320
+when: 1463535877.72456
